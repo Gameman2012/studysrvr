@@ -1,0 +1,15 @@
+{
+  "title": "درس تجريبي — أسئلة صور",
+  "questions": [
+    {
+      "title": "سؤال 1",
+      "q": "/test/q1.svg",
+      "a": "/test/a1.svg"
+    },
+    {
+      "title": "سؤال 2",
+      "q": "/test/q2.svg",
+      "a": "/test/a2.svg"
+    }
+  ]
+}

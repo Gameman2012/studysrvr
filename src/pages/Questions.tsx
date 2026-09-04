@@ -331,20 +331,23 @@ export function Questions() {
                   </span>
                   <button
                     type="button"
-                    onClick={next}
-                    disabled={isLast}
-                    aria-label="التالي"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-100 ${isLast ? "bg-secondary text-muted-foreground opacity-40" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+                    onClick={isLast ? backToFolder : next}
+                    aria-label={isLast ? "انتهى والعودة" : "التالي"}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90"
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </button>
                 </div>
 
                 {isLast ? (
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-secondary px-4 py-2 text-xs font-semibold text-muted-foreground opacity-60">
+                  <button
+                    type="button"
+                    onClick={backToFolder}
+                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+                  >
                     انتهى
                     <ArrowLeft className="h-3.5 w-3.5" />
-                  </span>
+                  </button>
                 ) : (
                   <div className="w-[68px]" aria-hidden />
                 )}

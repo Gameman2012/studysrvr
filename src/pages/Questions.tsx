@@ -46,7 +46,6 @@ export function Questions() {
   const [flipped, setFlipped] = useState(false)
   const [scale, setScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [finished, setFinished] = useState(false)
   const clickTimerRef = useRef<number | null>(null)
   const isDraggingRef = useRef(false)
   const dragStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
@@ -56,7 +55,6 @@ export function Questions() {
     setLoading(true)
     setError("")
     setActiveFile(null)
-    setFinished(false)
     try {
       const list = await fetchGitHubFolder(url)
       setItems(list)
@@ -86,8 +84,7 @@ export function Questions() {
           setFlipped(false)
           setScale(1)
           setPan({ x: 0, y: 0 })
-          setFinished(false)
-        })
+              })
         .catch((e) => { console.error("[Q] local file error:", e); setError("تعذّر قراءة ملف الأسئلة.") })
         .finally(() => setLoading(false))
       return
@@ -107,8 +104,7 @@ export function Questions() {
           setFlipped(false)
           setScale(1)
           setPan({ x: 0, y: 0 })
-          setFinished(false)
-        })
+              })
         .catch((e) => { console.error("[Q] file error:", e); setError("تعذّر قراءة ملف الأسئلة.") })
         .finally(() => setLoading(false))
     } else {
@@ -126,7 +122,6 @@ export function Questions() {
     setFlipped(false)
     setScale(1)
     setPan({ x: 0, y: 0 })
-    setFinished(false)
   }, [i, activeFile])
 
   // عند 100% رجّع الصورة للنص تلقائياً
@@ -149,7 +144,6 @@ export function Questions() {
   const next = () => {
     if (!activeFile) return
     if (currentIndex < activeFile.questions.length - 1) goIndex(currentIndex + 1)
-    else setFinished(true)
   }
 
   const prev = () => {
@@ -194,8 +188,7 @@ export function Questions() {
           setScale(1)
           setPan({ x: 0, y: 0 })
           setCurrentIndex(0)
-          setFinished(false)
-        })
+              })
         .catch(() => setError("تعذّر قراءة ملف الأسئلة."))
         .finally(() => setRefreshing(false))
     } else {
@@ -307,22 +300,6 @@ export function Questions() {
             )}
           </div>
         ) : activeFile ? (
-          finished ? (
-            <div className="mt-10 text-center">
-              <p className="mb-2 text-lg font-semibold">انتهيت من الأسئلة 🎉</p>
-              <p className="mb-6 text-sm text-muted-foreground">
-                لقد استعرضت جميع الأسئلة في هذا الملف.
-              </p>
-              <button
-                type="button"
-                onClick={backToFolder}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-              >
-                <ArrowRight className="h-4 w-4" />
-                رجوع للمجلد
-              </button>
-            </div>
-          ) : (
             <div className="mt-4">
               <p className="mb-3 text-center text-xs text-muted-foreground">
                 {activeFileName}
@@ -345,7 +322,7 @@ export function Questions() {
                     onClick={prev}
                     disabled={currentIndex === 0}
                     aria-label="السابق"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground transition hover:bg-secondary/70 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-100 ${currentIndex === 0 ? "bg-secondary text-muted-foreground opacity-40" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
                   >
                     <ArrowRight className="h-4 w-4" />
                   </button>
@@ -357,21 +334,17 @@ export function Questions() {
                     onClick={next}
                     disabled={isLast}
                     aria-label="التالي"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-100 ${isLast ? "bg-secondary text-muted-foreground opacity-40" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </button>
                 </div>
 
                 {isLast ? (
-                  <button
-                    type="button"
-                    onClick={next}
-                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
-                  >
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-secondary px-4 py-2 text-xs font-semibold text-muted-foreground opacity-60">
                     انتهى
                     <ArrowLeft className="h-3.5 w-3.5" />
-                  </button>
+                  </span>
                 ) : (
                   <div className="w-[68px]" aria-hidden />
                 )}
@@ -500,7 +473,6 @@ export function Questions() {
                 </div>
               </div>
             </div>
-          )
         ) : (
           <>
             {crumbs.length > 0 && (

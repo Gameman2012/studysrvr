@@ -8,11 +8,13 @@
 
 ## 2. الهيكل
 - مجلدان جذريان فقط: `كتب المادة/` و `مذكرات/` — لا ملفات في الـ root.
+- مجلد مخفي إضافي: `.thumbs/` — مرآة لشجرة الروابط لكن بصيغة `*.pdf.jpg` (صورة أول صفحة). **لا يُعرض في الموقع** (`src/lib/github.ts` ترشّح `isHiddenItem` و `src/components/FileList.tsx` ترشّح احتياطياً أي `.*`).
 - مجلدات عربية كاملة (`الرياضيات`, `العلوم`...) — استخدم `core.quotepath false`.
 - مثال:
 ```
 كتب المادة/الرياضيات/كتاب المادة.pdf.link → https://elibrary.moe.edu.kw/api/File/preview/book/3625
 مذكرات/الرياضيات/علا غير محلول.pdf.link    → https://archive.org/download/studysrvr-batch-2026/<encoded>
+.thumbs/مذكرات/الرياضيات/علا غير محلول.pdf.jpg → صورة أول صفحة (600px, 100dpi) — binary حقيقي commit
 ```
 
 ## 3. قواعد التسمية
@@ -20,6 +22,8 @@
 |---|---|---|
 | كتاب elibrary | `.pdf.link` | سطر واحد `https://elibrary.moe.edu.kw/api/File/preview/book/XXXX` بدون newline (`printf '%s'`) |
 | مذكرة/صورة archive.org | `.pdf.link` أو `.jpeg.link` | سطر واحد `https://archive.org/download/<identifier>/<encoded>` |
+| ثمبنيل أول صفحة | `*.pdf.jpg` داخل `.thumbs/` | صورة JPEG حقيقية (100dpi, عرض 600px) — تُولد عبر `generate-thumbs.sh` وتُدفع مع `srvr-files` |
+| رابط مكسور مؤقت | `*-broken.pdf.link` | نفس محتوى `.link` الأصلي لكن الاسم موسوم — يُعاد للاسم الأصلي بعد نجاح إعادة الرفع |
 
 - identifier ثابت **دائماً** `studysrvr-batch-2026` — لا تنشئ `studysrvr-<slug>-2026` منفصل لكل مذكرة. السبب: إنشاء item جديد على archive.org يُحتسب ضد حد spam (6 items/اليوم)، بينما الإضافة لعنصر موجود (`ia upload studysrvr-batch-2026 <file>`) لا تُعتبر spam. الإرسال يكون **واحدة واحدة** (`upload_one`) لنفس الـ identifier.
   - الاستثناء الوحيد: `studysrvr-batch2-2026` قديم (legacy) — ابقِ روابطه كما هي ولا تستخدمه للجديد.
@@ -50,6 +54,29 @@ IA_IDENTIFIER=studysrvr-batch-2026 ./upload_ia.sh "$HOME/Desktop/srvr-files/مذ
 **كتاب elibrary (بدون رفع):**
 ```bash
 printf '%s' 'https://elibrary.moe.edu.kw/api/File/preview/book/XXXX' > "$HOME/Desktop/srvr-files/كتب المادة/الرياضيات/كتاب المادة.pdf.link"
+```
+
+### 4.2.1 توليد الثمبنيل (للـ PDF فقط)
+المستخدم لا ينشئ الثمبنيل يدوياً — السكربت `generate-thumbs.sh` (في `studysrvr-v2/`) يولده:
+```bash
+./generate-thumbs.sh --dry-run                    # معاينة: pdf.link total | todo
+./generate-thumbs.sh --limit 2 --dpi 100 --width 600  # تجربة صغيرة أولاً
+./generate-thumbs.sh --dpi 100 --width 600        # توليد كامل (صغير)
+./generate-thumbs.sh --dpi 150 --width 800 --force # إعادة بدقة أعلى لو لزم
+./generate-thumbs.sh --prune                      # نقل thumbs اليتيمة لـ ~/Desktop/pdfs-temp/.thumbs بدل حذف
+```
+- mapping: `srvr-files/مذكرات/علوم/X.pdf.link` → `srvr-files/.thumbs/مذكرات/علوم/X.pdf.jpg` (مع `.pdf` في الاسم).
+- الدالة `load_thumb(link,url,thumb)` بثلاث وسيطات + `xargs -P 8` (توازي) + `flock` (منع نسختين) + `heartbeat` كل 10s (`أنا لازلت موجوداً`) + `timeout 120` لـ `curl` و `30` لـ `pdfinfo/pdftoppm`.
+- أدوات نظام: `pdftoppm` (poppler) + `curl` + `flock` + `magick/convert` للتحجيم فقط.
+- `*.jpeg.link` لا تحتاج thumb — الموقع يستخدم الصورة نفسها (`FileList.tsx:LinkThumb`).
+- روابط `*-broken.pdf.link` تُتخطى في التوليد (ثمبنيلها موجود بالاسم الأصلي) ويراعيها `--prune`.
+- بعد التوليد: `git -C ~/Desktop/srvr-files add .thumbs && git commit -m "feat: thumbs ..." && git push origin main`.
+
+### 4.2.2 وسم الروابط المكسورة مؤقتاً
+```bash
+# فقط التي تأكد 404 عبر: curl -sL -o /dev/null -w "%{http_code}" -r 0-0 --max-time 25 "$(cat link)"
+git -C ~/Desktop/srvr-files mv "مذكرات/الرياضيات/علا غير محلولة.pdf.link" "مذكرات/الرياضيات/علا غير محلولة-broken.pdf.link"
+# بعد نجاح إعادة الرفع بنفس الاسم: git mv "...-broken.pdf.link" "...pdf.link" (الروابط تعمل تلقائياً)
 ```
 
 **نقل/حذف:**
@@ -84,6 +111,8 @@ curl -s "https://raw.githubusercontent.com/Gameman2012/studysrvr-links/main/كت
 - لا تعدل `studysrvr-v2` لإضافة محتوى — المحتوى في `studysrvr-links` فقط.
 - لا `rm -rf` لملفات متتبعة — استخدم `git rm`.
 - لا تنشئ identifier جديد على archive.org لكل ملف — استخدم دائماً `studysrvr-batch-2026` (الإضافة لنفس الـ item لا تُحتسب spam؛ إنشاء item جديد هو ما يُحظر 6/اليوم). `studysrvr-batch2-2026` legacy فقط.
+- لا تدفع `*.pdf` binary — لكن `*.jpg` في `.thumbs/` مسموح (صور صغيرة أول صفحة).
+- لا تحذف `.thumbs` يدوياً — استخدم `generate-thumbs.sh --prune` لينقل اليتيمة لـ `pdfs-temp/.thumbs`.
 
 ## 6. مرجع كود
-`src/pages/Home.tsx` `src/lib/github.ts:74` `src/components/FileList.tsx:5` `src/config.ts:3`
+`src/pages/Home.tsx` `src/lib/github.ts:74` (فلترة `isHiddenItem` + `thumbRawUrl`) `src/components/FileList.tsx:5` (إخفاء `.thumbs` + `LinkThumb` + شارة `-broken`) `src/config.ts:3` `generate-thumbs.sh` (`load_thumb` + `heartbeat` + `timeout`)

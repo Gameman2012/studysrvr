@@ -1,14 +1,15 @@
-import { ChevronRight, FileText, FileType } from "lucide-react"
+import { useEffect, useState } from "react"
+import { ChevronRight, FileText, FileType, TriangleAlert } from "lucide-react"
 import type { GithubItem } from "@/lib/github"
-import { isPdf } from "@/lib/github"
-
-function isLink(name: string): boolean {
-  return name.toLowerCase().endsWith(".link")
-}
-
-function displayName(name: string): string {
-  return isLink(name) ? name.slice(0, -5) : name
-}
+import {
+  baseFileName,
+  displayName,
+  isBrokenLink,
+  isHiddenItem,
+  isLink,
+  isPdf,
+  thumbRawUrl,
+} from "@/lib/github"
 
 async function handleLinkClick(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
   e.preventDefault()
@@ -24,6 +25,54 @@ async function handleLinkClick(e: React.MouseEvent<HTMLAnchorElement>, url: stri
   }
 }
 
+/**
+ * Row thumbnail: for `*.pdf.link` uses the pre-generated first-page image
+ * from `.thumbs/`; for image links (`*.jpeg.link`) resolves the target and
+ * uses the image itself. Falls back to a file icon on any failure.
+ */
+function LinkThumb({ item }: { item: GithubItem }) {
+  const staticThumb = thumbRawUrl(item)
+  const [src, setSrc] = useState<string | null>(staticThumb)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setSrc(staticThumb)
+    setFailed(false)
+    if (staticThumb || !isLink(item.name) || !item.download_url) return
+    let cancelled = false
+    fetch(item.download_url)
+      .then((r) => r.text())
+      .then((t) => {
+        const target = t.trim()
+        if (!cancelled && /\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(target)) {
+          setSrc(target)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [item.download_url, item.name, staticThumb])
+
+  if (!src || failed) {
+    const FileIcon = isPdf(baseFileName(item.name)) ? FileType : FileText
+    return (
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+        <FileIcon className="h-4.5 w-4.5" />
+      </span>
+    )
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="h-9 w-9 shrink-0 rounded-lg border border-border object-cover"
+    />
+  )
+}
+
 export function FileList({
   items,
   onOpenDir,
@@ -31,9 +80,12 @@ export function FileList({
   items: GithubItem[]
   onOpenDir: (item: GithubItem) => void
 }) {
+  // Backup filter: hidden dot-paths (e.g. `.thumbs/`) never render,
+  // even if they slip through fetchGitHubFolder.
+  const visibleItems = items.filter((item) => !isHiddenItem(item))
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-      {items.map((item, idx) => {
+      {visibleItems.map((item, idx) => {
         const isDir = item.type === "dir"
 
         if (isDir) {
@@ -63,7 +115,8 @@ export function FileList({
             : item.download_url
           : "#"
 
-        const FileIcon = isPdf(item.name) ? FileType : FileText
+        const broken = isBrokenLink(item.name)
+        const pdfLabel = isPdf(baseFileName(item.name))
 
         return (
           <a
@@ -73,21 +126,19 @@ export function FileList({
             onClick={isLink(item.name) && item.download_url ? (e) => handleLinkClick(e, item.download_url!) : undefined}
             className="group flex w-full items-center gap-3 border-b border-border px-4 py-3.5 text-left transition last:border-b-0 hover:bg-secondary/60"
           >
-            <span
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                isPdf(item.name)
-                  ? "bg-primary/15 text-primary"
-                  : "bg-secondary text-muted-foreground"
-              }`}
-            >
-              <FileIcon className="h-4.5 w-4.5" />
-            </span>
+            <LinkThumb item={item} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">
                 {displayName(item.name)}
               </span>
-              <span className="block text-xs text-muted-foreground">
-                {isPdf(item.name) ? "PDF" : "File"}
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {pdfLabel ? "PDF" : "File"}
+                {broken && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-600 dark:text-amber-400">
+                    <TriangleAlert className="h-3 w-3" />
+                    معطل مؤقتاً
+                  </span>
+                )}
               </span>
             </span>
           </a>

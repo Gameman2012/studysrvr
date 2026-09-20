@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary pending uploads (63M PDFs + AI task file, deleted after re-upload)
+.pending-upload/

@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom"
 import { Header } from "@/components/Header"
-import { BookOpen, ImageIcon } from "lucide-react"
+import { BookOpen } from "lucide-react"
 
 const sections = [
   { name: "مذكرات", to: "/m", icon: BookOpen },
-  { name: "أسئلة", to: "/q", icon: ImageIcon },
 ]
 
 export function General() {

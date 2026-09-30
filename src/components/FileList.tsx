@@ -26,11 +26,11 @@ async function handleLinkClick(e: React.MouseEvent<HTMLAnchorElement>, url: stri
 }
 
 /**
- * Row thumbnail: for `*.pdf.link` uses the pre-generated first-page image
+ * Card image: for `*.pdf.link` uses the pre-generated first-page image
  * from `.thumbs/`; for image links (`*.jpeg.link`) resolves the target and
  * uses the image itself. Falls back to a file icon on any failure.
  */
-function LinkThumb({ item }: { item: GithubItem }) {
+function CardThumb({ item }: { item: GithubItem }) {
   const staticThumb = thumbRawUrl(item)
   const [src, setSrc] = useState<string | null>(staticThumb)
   const [failed, setFailed] = useState(false)
@@ -57,8 +57,8 @@ function LinkThumb({ item }: { item: GithubItem }) {
   if (!src || failed) {
     const FileIcon = isPdf(baseFileName(item.name)) ? FileType : FileText
     return (
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-        <FileIcon className="h-4.5 w-4.5" />
+      <span className="flex aspect-[3/4] w-full items-center justify-center bg-secondary text-muted-foreground">
+        <FileIcon className="h-10 w-10" />
       </span>
     )
   }
@@ -68,7 +68,7 @@ function LinkThumb({ item }: { item: GithubItem }) {
       alt=""
       loading="lazy"
       onError={() => setFailed(true)}
-      className="h-9 w-9 shrink-0 rounded-lg border border-border object-cover"
+      className="aspect-[3/4] w-full border-b border-border object-cover"
     />
   )
 }
@@ -83,13 +83,14 @@ export function FileList({
   // Backup filter: hidden dot-paths (e.g. `.thumbs/`) never render,
   // even if they slip through fetchGitHubFolder.
   const visibleItems = items.filter((item) => !isHiddenItem(item))
-  return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-      {visibleItems.map((item, idx) => {
-        const isDir = item.type === "dir"
+  const dirs = visibleItems.filter((item) => item.type === "dir")
+  const files = visibleItems.filter((item) => item.type !== "dir")
 
-        if (isDir) {
-          return (
+  return (
+    <div className="mt-4 space-y-4">
+      {dirs.length > 0 && (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          {dirs.map((item, idx) => (
             <button
               key={item.path || `${item.name}-${idx}`}
               type="button"
@@ -106,44 +107,45 @@ export function FileList({
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
             </button>
-          )
-        }
+          ))}
+        </div>
+      )}
 
-        const href = item.download_url
-          ? isLink(item.name)
-            ? item.download_url
-            : item.download_url
-          : "#"
+      {files.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {files.map((item, idx) => {
+            const href = item.download_url ?? "#"
+            const broken = isBrokenLink(item.name)
+            const pdfLabel = isPdf(baseFileName(item.name))
 
-        const broken = isBrokenLink(item.name)
-        const pdfLabel = isPdf(baseFileName(item.name))
-
-        return (
-          <a
-            key={item.path || `${item.name}-${idx}`}
-            href={href}
-            download={isLink(item.name) || isPdf(item.name) ? undefined : item.name}
-            onClick={isLink(item.name) && item.download_url ? (e) => handleLinkClick(e, item.download_url!) : undefined}
-            className="group flex w-full items-center gap-3 border-b border-border px-4 py-3.5 text-left transition last:border-b-0 hover:bg-secondary/60"
-          >
-            <LinkThumb item={item} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">
-                {displayName(item.name)}
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                {pdfLabel ? "PDF" : "File"}
-                {broken && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-600 dark:text-amber-400">
-                    <TriangleAlert className="h-3 w-3" />
-                    معطل مؤقتاً
+            return (
+              <a
+                key={item.path || `${item.name}-${idx}`}
+                href={href}
+                download={isLink(item.name) || isPdf(item.name) ? undefined : item.name}
+                onClick={isLink(item.name) && item.download_url ? (e) => handleLinkClick(e, item.download_url!) : undefined}
+                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition hover:bg-secondary/60"
+              >
+                <CardThumb item={item} />
+                <span className="flex min-h-16 flex-1 flex-col justify-center gap-1 p-3">
+                  <span className="line-clamp-2 text-sm font-medium leading-snug">
+                    {displayName(item.name)}
                   </span>
-                )}
-              </span>
-            </span>
-          </a>
-        )
-      })}
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {pdfLabel ? "PDF" : "File"}
+                    {broken && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-600 dark:text-amber-400">
+                        <TriangleAlert className="h-3 w-3" />
+                        معطل مؤقتاً
+                      </span>
+                    )}
+                  </span>
+                </span>
+              </a>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

@@ -83,9 +83,9 @@ export function Home() {
         )}
 
         {loading ? (
-          <div className="mt-4 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-[3/4] w-full rounded-2xl" />
             ))}
           </div>
         ) : error ? (

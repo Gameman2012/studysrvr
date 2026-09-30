@@ -63,8 +63,8 @@ upload_one() {
   if ia upload "$IDENT" "$SRC" --metadata="mediatype:texts" --metadata="collection:opensource" --metadata="title:$FILENAME" 2>&1; then
     mv "$SRC" "$TEMP/"
     printf '%s' "$URL" > "${SRC}.link"
-    # validate single line no newline
-    if grep -q $'\n' "${SRC}.link" 2>/dev/null; then echo "WARN: .link has newline"; fi
+    # validate single line no trailing newline
+    if [ -z "$(tail -c 1 "${SRC}.link")" ]; then echo "WARN: .link has trailing newline"; fi
     echo "OK: ${SRC}.link ($(wc -c < "${SRC}.link") bytes)"
   else
     echo "FAILED: $IDENT (spam? wait 24h or use batch)"

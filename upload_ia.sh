@@ -54,13 +54,13 @@ upload_one() {
   local IDENT="$2"
   if [ ! -f "$SRC" ]; then echo "ERROR: not found: $SRC"; return 1; fi
   local FILENAME=$(basename "$SRC")
+  make_local_thumb "$SRC"
   local ENCODED=$(python3 -c "import urllib.parse, pathlib, sys; print(urllib.parse.quote(pathlib.Path(sys.argv[1]).name))" "$SRC")
   local URL="https://archive.org/download/${IDENT}/${ENCODED}"
   echo "=== $SRC -> $IDENT ==="
   echo "URL: $URL"
   if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] skip ia upload"; return 0; fi
   if ia upload "$IDENT" "$SRC" --metadata="mediatype:texts" --metadata="collection:opensource" --metadata="title:$FILENAME" 2>&1; then
-    make_local_thumb "$SRC"
     mv "$SRC" "$TEMP/"
     printf '%s' "$URL" > "${SRC}.link"
     # validate single line no newline
@@ -78,10 +78,11 @@ batch_upload() {
   if [ ${#FILES[@]} -eq 0 ]; then echo "لا يوجد ملفات binary متبقية في $BASE"; return 0; fi
   echo "Batch upload ${#FILES[@]} files -> $IDENT"
   printf '%s\n' "${FILES[@]}"
+  echo "ثمبنيل محلي قبل الرفع:"
+  for SRC in "${FILES[@]}"; do make_local_thumb "$SRC"; done
   if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] skip ia upload"; return 0; fi
   if ia upload "$IDENT" "${FILES[@]}" --metadata="mediatype:texts" --metadata="collection:opensource" --metadata="title:studysrvr batch" 2>&1; then
     for SRC in "${FILES[@]}"; do
-      make_local_thumb "$SRC"
       mv "$SRC" "$TEMP/"
       local ENCODED=$(python3 -c "import urllib.parse, pathlib, sys; print(urllib.parse.quote(pathlib.Path(sys.argv[1]).name))" "$SRC")
       printf '%s' "https://archive.org/download/${IDENT}/${ENCODED}" > "${SRC}.link"

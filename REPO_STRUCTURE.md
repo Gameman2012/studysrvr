@@ -58,7 +58,7 @@ printf '%s' 'https://elibrary.moe.edu.kw/api/File/preview/book/XXXX' > "$HOME/De
 
 ### 4.2.1 توليد الثمبنيل (للـ PDF فقط)
 المستخدم لا ينشئ الثمبنيل يدوياً — الأولوية للتوليد المحلي:
-- `upload_ia.sh` يولد الثمبنيل تلقائياً من الأصل المحلي (`make_local_thumb`: أول صفحة، 100dpi/عرض 600px) بعد نجاح الرفع وقبل نقل الأصل لـ `pdfs-temp`. لا انتظار لـ derive ولا إعادة تحميل.
+- `upload_ia.sh` يولد الثمبنيل تلقائياً من الأصل المحلي (`make_local_thumb`: أول صفحة، 100dpi/عرض 600px) **قبل** الرفع — لا انتظار لـ derive ولا إعادة تحميل. اليتيم الناتج عن رفع فاشل ينظفه `generate-thumbs.sh --prune`.
 - السكربت `generate-thumbs.sh` (في `studysrvr-v2/`) للحالات بلا أصل محلي فقط: روابط elibrary، استعادة `-broken`، ملفات قديمة:
 ```bash
 ./generate-thumbs.sh --dry-run                    # معاينة: pdf.link total | todo

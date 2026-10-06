@@ -7,7 +7,7 @@
 - `src/components/FileList.tsx:5`: مجلد = button، ملف `.pdf.link`/`.jpeg.link` = `<a>` يحذف آخر 5 أحرف للعرض (`displayName`) وعند الضغط `fetch(download_url).text() -> window.open(url)` (`FileList.tsx:13`). محتوى الـ `.link` سطر واحد URL فقط.
 
 ## 2. الهيكل
-- مجلدان جذريان فقط: `كتب المادة/` و `مذكرات/` — لا ملفات في الـ root.
+- مجلدات جذرية (`كتب المادة/`، `مذكرات/`، ...) — لا ملفات في الـ root.
 - مجلد مخفي إضافي: `.thumbs/` — مرآة لشجرة الروابط لكن بصيغة `*.pdf.jpg` (صورة أول صفحة). **لا يُعرض في الموقع** (`src/lib/github.ts` ترشّح `isHiddenItem` و `src/components/FileList.tsx` ترشّح احتياطياً أي `.*`).
 - مجلدات عربية كاملة (`الرياضيات`, `العلوم`...) — استخدم `core.quotepath false`.
 - مثال:

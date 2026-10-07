@@ -21,12 +21,14 @@
 | النوع | الامتداد | المحتوى |
 |---|---|---|
 | كتاب elibrary | `.pdf.link` | سطر واحد `https://elibrary.moe.edu.kw/api/File/preview/book/XXXX` بدون newline (`printf '%s'`) |
-| مذكرة/صورة archive.org | `.pdf.link` أو `.jpeg.link` | سطر واحد `https://archive.org/download/<identifier>/<encoded>` |
+| رابط مباشر موثوق | `.pdf.link` | سطر واحد URL مباشر `application/pdf` (يدعم `Range`, `curl -r 0-0` يرجع 200/206) بدون newline (`printf '%s'`) — يُستخدم فوراً بدون رفع (مثال: `njah .../?direct=1` أو CDN `...digitaloceanspaces.com/...pdf`) |
+| مذكرة/صورة archive.org (لا رابط مباشر لها) | `.pdf.link` أو `.jpeg.link` | سطر واحد `https://archive.org/download/<identifier>/<encoded>` |
 | ثمبنيل أول صفحة | `*.pdf.jpg` داخل `.thumbs/` | صورة JPEG حقيقية (100dpi, عرض 600px) — تُولد عبر `generate-thumbs.sh` وتُدفع مع `srvr-files` |
 | رابط مكسور مؤقت | `*-broken.pdf.link` | نفس محتوى `.link` الأصلي لكن الاسم موسوم — يُعاد للاسم الأصلي بعد نجاح إعادة الرفع |
 
 - identifier ثابت **دائماً** `studysrvr-batch-2026` — لا تنشئ `studysrvr-<slug>-2026` منفصل لكل مذكرة. السبب: إنشاء item جديد على archive.org يُحتسب ضد حد spam (6 items/اليوم)، بينما الإضافة لعنصر موجود (`ia upload studysrvr-batch-2026 <file>`) لا تُعتبر spam. الإرسال يكون **واحدة واحدة** (`upload_one`) لنفس الـ identifier.
   - الاستثناء الوحيد: `studysrvr-batch2-2026` قديم (legacy) — ابقِ روابطه كما هي ولا تستخدمه للجديد.
+- الأولوية للرابط المباشر: لو المصدر يعطي PDF مباشر موثوق (مثل `njah.online/...pdf/?direct=1` أو CDN `njah.sgp1.cdn.digitaloceanspaces.com/...pdf`) ويُتحقق عبر `curl -sIL` (`content-type: application/pdf`) + `curl -sL -r 0-0` (يرجع 200/206) — استعمله فوراً في `.link` ولا ترفعه لـ archive.org. الرفع لـ `studysrvr-batch-2026` فقط عند غياب رابط مباشر (ملف محلي من المستخدم، رابط صفحة HTML، رابط منتهي).
 - لا ترفع PDF binary — دائماً `*.link`. الأصل يُنقل لـ `~/Desktop/pdfs-temp` بعد الرفع.
 
 ## 4. Workflow (إلزامي) — clone واحد فقط
@@ -56,10 +58,20 @@ IA_IDENTIFIER=studysrvr-batch-2026 ./upload_ia.sh "$HOME/Desktop/srvr-files/مذ
 printf '%s' 'https://elibrary.moe.edu.kw/api/File/preview/book/XXXX' > "$HOME/Desktop/srvr-files/كتب المادة/الرياضيات/كتاب المادة.pdf.link"
 ```
 
+**رابط مباشر موثوق (بدون رفع — الأولوية):**
+```bash
+# تحقق أولاً: يجب content-type: application/pdf + دعم Range
+curl -sIL --max-time 25 "https://njah.online/download/XXX.pdf/?direct=1" -A "Mozilla/5.0" | grep -i content-type
+curl -sL -r 0-0 --max-time 25 "https://njah.online/download/XXX.pdf/?direct=1" -A "Mozilla/5.0" -o /dev/null -D - | head
+# الأفضل CDN المكشوف من ?read=1 (بدون query, يقبل cache): njah.sgp1.cdn.digitaloceanspaces.com/...pdf
+printf '%s' 'https://njah.sgp1.cdn.digitaloceanspaces.com/school-kw.com/2025-12/XXX.pdf' > "$HOME/Desktop/srvr-files/مذكرات/الاجتماعيات/اسم الملف.pdf.link"
+# ثم ثمبنيل عبر generate-thumbs.sh (لا أصل محلي — §4.2.1)
+```
+
 ### 4.2.1 توليد الثمبنيل (للـ PDF فقط)
 المستخدم لا ينشئ الثمبنيل يدوياً — الأولوية للتوليد المحلي:
 - `upload_ia.sh` يولد الثمبنيل تلقائياً من الأصل المحلي (`make_local_thumb`: أول صفحة، 100dpi/عرض 600px) **قبل** الرفع — لا انتظار لـ derive ولا إعادة تحميل. اليتيم الناتج عن رفع فاشل ينظفه `generate-thumbs.sh --prune`.
-- السكربت `generate-thumbs.sh` (في `studysrvr-v2/`) للحالات بلا أصل محلي فقط: روابط elibrary، استعادة `-broken`، ملفات قديمة:
+- السكربت `generate-thumbs.sh` (في `studysrvr-v2/`) للحالات بلا أصل محلي فقط: روابط elibrary، روابط مباشرة (njah/CDN)، استعادة `-broken`، ملفات قديمة:
 ```bash
 ./generate-thumbs.sh --dry-run                    # معاينة: pdf.link total | todo
 ./generate-thumbs.sh --limit 2 --dpi 100 --width 600  # تجربة صغيرة أولاً
@@ -113,6 +125,7 @@ curl -s "https://raw.githubusercontent.com/Gameman2012/studysrvr-links/main/كت
 - لا تعدل `studysrvr-v2` لإضافة محتوى — المحتوى في `studysrvr-links` فقط.
 - لا `rm -rf` لملفات متتبعة — استخدم `git rm`.
 - لا تنشئ identifier جديد على archive.org لكل ملف — استخدم دائماً `studysrvr-batch-2026` (الإضافة لنفس الـ item لا تُحتسب spam؛ إنشاء item جديد هو ما يُحظر 6/اليوم). `studysrvr-batch2-2026` legacy فقط.
+- لا ترفع لـ archive.org ما له رابط مباشر موثوق (`application/pdf` + يدعم `Range`) — استعمل الرابط فوراً ووفّر quota وتجنّب spam.
 - لا تدفع `*.pdf` binary — لكن `*.jpg` في `.thumbs/` مسموح (صور صغيرة أول صفحة).
 - لا تحذف `.thumbs` يدوياً — استخدم `generate-thumbs.sh --prune` لينقل اليتيمة لـ `pdfs-temp/.thumbs`.
 

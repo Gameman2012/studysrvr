@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { ChevronRight, FileText, FileType, TriangleAlert } from "lucide-react"
 import type { GithubItem } from "@/lib/github"
 import {
@@ -10,20 +11,6 @@ import {
   isPdf,
   thumbRawUrl,
 } from "@/lib/github"
-
-async function handleLinkClick(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
-  e.preventDefault()
-  try {
-    const res = await fetch(url)
-    const text = await res.text()
-    const target = text.trim()
-    if (target) {
-      window.open(target, "_blank")
-    }
-  } catch {
-    console.error("Failed to resolve .link file")
-  }
-}
 
 /**
  * Card image: for `*.pdf.link` uses the pre-generated first-page image
@@ -114,18 +101,14 @@ export function FileList({
       {files.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {files.map((item, idx) => {
-            const href = item.download_url ?? "#"
             const broken = isBrokenLink(item.name)
             const pdfLabel = isPdf(baseFileName(item.name))
+            const internal = isLink(item.name) && item.path
+            const cardClass =
+              "group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition hover:bg-secondary/60"
 
-            return (
-              <a
-                key={item.path || `${item.name}-${idx}`}
-                href={href}
-                download={isLink(item.name) || isPdf(item.name) ? undefined : item.name}
-                onClick={isLink(item.name) && item.download_url ? (e) => handleLinkClick(e, item.download_url!) : undefined}
-                className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition hover:bg-secondary/60"
-              >
+            const cardInner = (
+              <>
                 <CardThumb item={item} />
                 <span className="flex min-h-16 flex-1 flex-col justify-center gap-1 p-3">
                   <span className="line-clamp-2 text-sm font-medium leading-snug">
@@ -141,6 +124,29 @@ export function FileList({
                     )}
                   </span>
                 </span>
+              </>
+            )
+
+            if (internal) {
+              return (
+                <Link
+                  key={item.path || `${item.name}-${idx}`}
+                  to={`/f?path=${encodeURIComponent(item.path)}`}
+                  className={cardClass}
+                >
+                  {cardInner}
+                </Link>
+              )
+            }
+
+            return (
+              <a
+                key={item.path || `${item.name}-${idx}`}
+                href={item.download_url ?? "#"}
+                download={isPdf(item.name) ? undefined : item.name}
+                className={cardClass}
+              >
+                {cardInner}
               </a>
             )
           })}

@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Header } from "@/components/Header"
 import { BookOpen } from "lucide-react"
@@ -7,6 +8,9 @@ const sections = [
 ]
 
 export function General() {
+  useEffect(() => {
+    document.title = "Study Hub"
+  }, [])
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />

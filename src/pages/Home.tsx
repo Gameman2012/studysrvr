@@ -1,20 +1,59 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Header } from "@/components/Header"
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs"
 import { FileList } from "@/components/FileList"
 import { Skeleton } from "@/components/ui/skeleton"
 import { REPO_URL } from "@/config"
 import {
+  contentUrl,
   fetchGitHubFolder,
   type GithubItem,
 } from "@/lib/github"
 
 export function Home() {
-  const [crumbs, setCrumbs] = useState<Crumb[]>([])
+  useEffect(() => {
+    document.title = "Study Hub - Explore"
+  }, [])
+
+  const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState<GithubItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState("")
+
+  const rawPath = searchParams.get("path") ?? ""
+  const dirPath = rawPath.replace(/^\/+|\/+$/g, "")
+  const segments = useMemo(
+    () => (dirPath ? dirPath.split("/").filter(Boolean) : []),
+    [dirPath],
+  )
+
+  const apiUrl = useMemo(
+    () =>
+      contentUrl(
+        REPO_URL,
+        segments.map((s) => encodeURIComponent(s)).join("/"),
+      ),
+    [segments],
+  )
+
+  const crumbs: Crumb[] = useMemo(() => {
+    const list: Crumb[] = [{ name: "Home", url: REPO_URL }]
+    segments.forEach((seg, i) => {
+      list.push({
+        name: seg,
+        url: contentUrl(
+          REPO_URL,
+          segments
+            .slice(0, i + 1)
+            .map((s) => encodeURIComponent(s))
+            .join("/"),
+        ),
+      })
+    })
+    return list
+  }, [segments])
 
   const loadFolder = useCallback(async (url: string) => {
     setLoading(true)
@@ -40,27 +79,29 @@ export function Home() {
       setLoading(false)
       return
     }
-    setCrumbs([{ name: "Home", url: REPO_URL }])
-    loadFolder(REPO_URL)
-  }, [loadFolder])
+    loadFolder(apiUrl)
+  }, [apiUrl, loadFolder])
 
   const openDir = (item: GithubItem) => {
-    setCrumbs((prev) => [...prev, { name: item.name, url: item.url }])
-    loadFolder(item.url)
+    const target = (item.path || "").replace(/^\/+|\/+$/g, "")
+    setSearchParams(target ? { path: target } : {})
   }
 
   const goToCrumb = (index: number) => {
-    const target = crumbs[index]
-    setCrumbs((prev) => prev.slice(0, index + 1))
-    loadFolder(target.url)
+    if (index <= 0) {
+      setSearchParams({})
+      return
+    }
+    const target = segments.slice(0, index).join("/")
+    setSearchParams(target ? { path: target } : {})
   }
 
   const refresh = () => {
     setRefreshing(true)
-    loadFolder(crumbs[crumbs.length - 1].url)
+    loadFolder(apiUrl)
   }
 
-  const currentUrl = crumbs[crumbs.length - 1]?.url ?? REPO_URL
+  const currentUrl = apiUrl
 
   return (
     <div className="min-h-screen bg-background text-foreground">

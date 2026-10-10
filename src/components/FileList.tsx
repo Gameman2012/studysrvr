@@ -60,6 +60,12 @@ function CardThumb({ item }: { item: GithubItem }) {
   )
 }
 
+function isRtlName(name: string): boolean {
+  const m = name.match(/[A-Za-z\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/)
+  if (!m) return true
+  return /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/.test(m[0])
+}
+
 export function FileList({
   items,
   onOpenDir,
@@ -77,16 +83,20 @@ export function FileList({
     <div className="mt-4 space-y-4">
       {dirs.length > 0 && (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          {dirs.map((item, idx) => (
+          {dirs.map((item, idx) => {
+            const name = displayName(item.name)
+            const rtl = isRtlName(name)
+            return (
             <button
               key={item.path || `${item.name}-${idx}`}
               type="button"
+              dir={rtl ? "rtl" : "ltr"}
               onClick={() => onOpenDir(item)}
               className="group flex w-full items-center gap-3 border-b border-border px-4 py-3.5 text-start transition last:border-b-0 hover:bg-secondary/60"
             >
               <span className="min-w-0 flex-1">
                 <span dir="auto" className="block truncate text-sm font-medium">
-                  {displayName(item.name)}
+                  {name}
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   مجلد · Folder
@@ -94,7 +104,8 @@ export function FileList({
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
             </button>
-          ))}
+            )
+          })}
         </div>
       )}
 

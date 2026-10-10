@@ -82,17 +82,17 @@ export function FileList({
               key={item.path || `${item.name}-${idx}`}
               type="button"
               onClick={() => onOpenDir(item)}
-              className="group flex w-full items-center gap-3 border-b border-border px-4 py-3.5 text-left transition last:border-b-0 hover:bg-secondary/60"
+              className="group flex w-full items-center gap-3 border-b border-border px-4 py-3.5 text-start transition last:border-b-0 hover:bg-secondary/60"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">
+                <span dir="auto" className="block truncate text-sm font-medium">
                   {displayName(item.name)}
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   مجلد · Folder
                 </span>
               </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
             </button>
           ))}
         </div>

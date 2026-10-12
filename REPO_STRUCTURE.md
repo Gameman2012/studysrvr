@@ -82,7 +82,7 @@ printf '%s' 'https://njah.sgp1.cdn.digitaloceanspaces.com/school-kw.com/2025-12/
 - mapping: `srvr-files/مذكرات/علوم/X.pdf.link` → `srvr-files/.thumbs/مذكرات/علوم/X.pdf.jpg` (مع `.pdf` في الاسم).
 - الدالة `load_thumb(link,url,thumb)` بثلاث وسيطات + `xargs -P 8` (توازي) + `flock` (منع نسختين) + `heartbeat` كل 10s (`أنا لازلت موجوداً`) + `timeout 120` لـ `curl` و `30` لـ `pdfinfo/pdftoppm`.
 - أدوات نظام: `pdftoppm` (poppler) + `curl` + `flock` + `magick/convert` للتحجيم فقط.
-- `*.jpeg.link` لا تحتاج thumb — الموقع يستخدم الصورة نفسها (`FileList.tsx:LinkThumb`).
+- `*.jpeg/*.png.link` الثقيلة لها thumb بنفس الامتداد مصغراً (`magick -thumbnail 600x>`) — الموقع يعرض الثمبنيل مباشرة من غير `fetch` (`FileList.tsx:CardThumb`). الصور الصغيرة تُثبت binary مباشرة (لا `.link` ولا thumb) وتُعرض من `download_url`.
 - روابط `*-broken.pdf.link` تُتخطى في التوليد (ثمبنيلها موجود بالاسم الأصلي) ويراعيها `--prune`.
 - بعد التوليد: `git -C ~/Desktop/srvr-files add .thumbs && git commit -m "feat: thumbs ..." && git push origin main`.
 

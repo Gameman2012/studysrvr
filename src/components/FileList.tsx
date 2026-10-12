@@ -7,39 +7,30 @@ import {
   displayName,
   isBrokenLink,
   isHiddenItem,
+  isImageFile,
   isLink,
   isPdf,
   thumbRawUrl,
 } from "@/lib/github"
 
 /**
- * Card image: for `*.pdf.link` uses the pre-generated first-page image
- * from `.thumbs/`; for image links (`*.jpeg.link`) resolves the target and
- * uses the image itself. Falls back to a file icon on any failure.
+ * Card image (direct only, no per-card fetch):
+ * - `*.pdf.link` / image `*.link` -> pre-generated thumb from `.thumbs/`
+ * - direct image binary (small images) -> `download_url` itself
+ * - otherwise -> file icon fallback.
  */
 function CardThumb({ item }: { item: GithubItem }) {
-  const staticThumb = thumbRawUrl(item)
-  const [src, setSrc] = useState<string | null>(staticThumb)
+  const thumb = thumbRawUrl(item)
+  const direct =
+    !isLink(item.name) && isImageFile(item.name) ? item.download_url : null
+  const initial = thumb ?? direct
+  const [src, setSrc] = useState<string | null>(initial)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    setSrc(staticThumb)
+    setSrc(thumb ?? direct)
     setFailed(false)
-    if (staticThumb || !isLink(item.name) || !item.download_url) return
-    let cancelled = false
-    fetch(item.download_url)
-      .then((r) => r.text())
-      .then((t) => {
-        const target = t.trim()
-        if (!cancelled && /\.(jpe?g|png|webp|gif)(\?|#|$)/i.test(target)) {
-          setSrc(target)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [item.download_url, item.name, staticThumb])
+  }, [item.download_url, item.name, thumb, direct])
 
   if (!src || failed) {
     const FileIcon = isPdf(baseFileName(item.name)) ? FileType : FileText
@@ -114,7 +105,8 @@ export function FileList({
           {files.map((item, idx) => {
             const broken = isBrokenLink(item.name)
             const pdfLabel = isPdf(baseFileName(item.name))
-            const internal = isLink(item.name) && item.path
+            const internal =
+              !!item.path && (isLink(item.name) || isImageFile(item.name))
             const cardClass =
               "group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition hover:bg-secondary/60"
 

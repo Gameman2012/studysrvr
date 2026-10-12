@@ -63,6 +63,11 @@ export function isPdf(name: string): boolean {
   return name.toLowerCase().endsWith(".pdf")
 }
 
+export function isImageFile(name: string): boolean {
+  const base = isLink(name) ? baseFileName(name) : name
+  return /\.(jpe?g|png|webp|gif)$/i.test(base)
+}
+
 export function isLink(name: string): boolean {
   return name.toLowerCase().endsWith(".link")
 }
@@ -94,15 +99,20 @@ export function baseFileName(name: string): string {
 }
 
 /**
- * Raw URL of the first-page thumbnail for a `*.pdf.link` item.
+ * Raw URL of the thumbnail for a link item.
  * Thumbs live in `.thumbs/` at repo root mirroring the link path:
- * `مذكرات/علوم/X.pdf.link` -> `/.thumbs/مذكرات/علوم/X.pdf.jpg`
- * Returns null for non-PDF links (jpeg links use the image itself).
+ * `مذكرات/علوم/X.pdf.link` -> `/.thumbs/مذكرات/علوم/X.pdf.jpg` (first page)
+ * `مذكرات/علوم/X.jpeg.link` -> `/.thumbs/مذكرات/علوم/X.jpeg` (resized, same ext)
+ * Heavy images keep `.link` + thumb; small images are committed as direct
+ * binaries (no `.link`, no thumb) and render from `download_url`.
+ * Returns null for direct image binaries (rendered from `download_url`)
+ * and for non-image/non-PDF files.
  */
 export function thumbRawUrl(item: GithubItem): string | null {
   if (!item.download_url || item.type !== "file") return null
+  if (!isLink(item.name)) return null
   const base = baseFileName(item.name)
-  if (!base.toLowerCase().endsWith(".pdf")) return null
+  const lower = base.toLowerCase()
   const marker = "/main/"
   const idx = item.download_url.indexOf(marker)
   if (idx === -1) return null
@@ -110,7 +120,13 @@ export function thumbRawUrl(item: GithubItem): string | null {
   const rest = item.download_url.slice(idx + marker.length)
   const dirEnd = rest.lastIndexOf("/")
   const dir = dirEnd === -1 ? "" : rest.slice(0, dirEnd + 1)
-  return `${prefix}.thumbs/${dir}${base}.jpg`
+  if (lower.endsWith(".pdf")) {
+    return `${prefix}.thumbs/${dir}${base}.jpg`
+  }
+  if (/\.(jpe?g|png|webp|gif)$/.test(lower)) {
+    return `${prefix}.thumbs/${dir}${base}`
+  }
+  return null
 }
 
 export function formatSize(bytes: number): string {

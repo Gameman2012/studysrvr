@@ -23,30 +23,51 @@ print(s[:40] or 'file')
 " "$1"
 }
 
-# ثمبنيل أول صفحة من الملف المحلي قبل نقله لـ pdfs-temp.
+# ثمبنيل من الملف المحلي قبل نقله لـ pdfs-temp.
 # mapping: $BASE/مذكرات/علوم/X.pdf -> $BASE/.thumbs/مذكرات/علوم/X.pdf.jpg
-# للصور (jpeg) لا حاجة — الموقع يستخدم الصورة نفسها.
+# للصور الثقيلة: $BASE/مذكرات/X.jpeg -> $BASE/.thumbs/مذكرات/X.jpeg (مصغرة 600px).
+# الصور الصغيرة تُثبت binary مباشرة ولا تمر من هنا أصلاً.
 # ملفات خارج $BASE تُتخطى (لا نعرف مرآتها).
 make_local_thumb() {
   local SRC="$1"
-  case "${SRC,,}" in *.pdf) ;; *) return 0;; esac
-  command -v pdftoppm >/dev/null 2>&1 || { echo "WARN: pdftoppm missing, skip thumb"; return 0; }
   local REL="${SRC#$BASE/}"
   [ "$REL" = "$SRC" ] && return 0
-  local THUMB="$BASE/.thumbs/${REL}.jpg"
-  [ -f "$THUMB" ] && { echo "thumb exists: $THUMB"; return 0; }
-  mkdir -p "$(dirname "$THUMB")"
-  local OUT="${THUMB%.jpg}"
-  if timeout 30 pdftoppm -f 1 -l 1 -jpeg -r 100 -singlefile "$SRC" "$OUT" 2>/dev/null; then
-    if command -v magick >/dev/null 2>&1; then
-      timeout 30 magick "$THUMB" -thumbnail "600x>" -quality 82 "$THUMB" 2>/dev/null || true
-    elif command -v convert >/dev/null 2>&1; then
-      timeout 30 convert "$THUMB" -thumbnail "600x>" -quality 82 "$THUMB" 2>/dev/null || true
-    fi
-    echo "thumb OK: $THUMB ($(wc -c < "$THUMB") bytes)"
-  else
-    echo "WARN: thumb failed for $SRC"
-  fi
+  case "${SRC,,}" in
+    *.pdf)
+      command -v pdftoppm >/dev/null 2>&1 || { echo "WARN: pdftoppm missing, skip thumb"; return 0; }
+      local THUMB="$BASE/.thumbs/${REL}.jpg"
+      [ -f "$THUMB" ] && { echo "thumb exists: $THUMB"; return 0; }
+      mkdir -p "$(dirname "$THUMB")"
+      local OUT="${THUMB%.jpg}"
+      if timeout 30 pdftoppm -f 1 -l 1 -jpeg -r 100 -singlefile "$SRC" "$OUT" 2>/dev/null; then
+        if command -v magick >/dev/null 2>&1; then
+          timeout 30 magick "$THUMB" -thumbnail "600x>" -quality 82 "$THUMB" 2>/dev/null || true
+        elif command -v convert >/dev/null 2>&1; then
+          timeout 30 convert "$THUMB" -thumbnail "600x>" -quality 82 "$THUMB" 2>/dev/null || true
+        fi
+        echo "thumb OK: $THUMB ($(wc -c < "$THUMB") bytes)"
+      else
+        echo "WARN: thumb failed for $SRC"
+      fi
+      ;;
+    *.jpeg|*.jpg|*.png|*.webp|*.gif)
+      local IMG_THUMB="$BASE/.thumbs/${REL}"
+      [ -f "$IMG_THUMB" ] && { echo "thumb exists: $IMG_THUMB"; return 0; }
+      mkdir -p "$(dirname "$IMG_THUMB")"
+      if command -v magick >/dev/null 2>&1; then
+        timeout 30 magick "$SRC" -thumbnail "600x>" -quality 82 "$IMG_THUMB" 2>/dev/null \
+          && echo "thumb OK: $IMG_THUMB ($(wc -c < "$IMG_THUMB") bytes)" \
+          || echo "WARN: thumb failed for $SRC"
+      elif command -v convert >/dev/null 2>&1; then
+        timeout 30 convert "$SRC" -thumbnail "600x>" -quality 82 "$IMG_THUMB" 2>/dev/null \
+          && echo "thumb OK: $IMG_THUMB ($(wc -c < "$IMG_THUMB") bytes)" \
+          || echo "WARN: thumb failed for $SRC"
+      else
+        echo "WARN: magick missing, skip thumb"
+      fi
+      ;;
+    *) return 0;;
+  esac
 }
 
 upload_one() {

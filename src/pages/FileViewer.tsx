@@ -4,8 +4,10 @@ import {
   ArrowLeft,
   ExternalLink,
   GraduationCap,
+  Share2,
   TriangleAlert,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { REPO_URL } from "@/config"
@@ -16,6 +18,13 @@ import {
   isLink,
   type GithubItem,
 } from "@/lib/github"
+import {
+  copyText,
+  fetchIdsMap,
+  findIdByPath,
+  longUrlForPath,
+  shortUrlForId,
+} from "@/lib/share"
 
 function isImageName(name: string): boolean {
   return /\.(jpe?g|png|webp|gif)$/i.test(name)
@@ -23,8 +32,13 @@ function isImageName(name: string): boolean {
 
 export function FileViewer() {
   const [searchParams] = useSearchParams()
-  const rawPath = searchParams.get("path") ?? ""
-  const filePath = rawPath.replace(/^\/+|\/+$/g, "")
+  // Short id wins; `path` is the fallback (legacy links + unknown ids).
+  const idParam = (searchParams.get("id") ?? "").trim()
+  const pathParam = (searchParams.get("path") ?? "").replace(/^\/+|\/+$/g, "")
+
+  const [filePath, setFilePath] = useState(pathParam)
+  const [resolvingId, setResolvingId] = useState(!!idParam)
+  const [sharing, setSharing] = useState(false)
 
   const [target, setTarget] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,8 +59,60 @@ export function FileViewer() {
     document.title = "Study Hub - File"
   }, [])
 
+  // Resolve `?id=` to a repo path via `.ids/map.json` (cached per session).
   useEffect(() => {
     let cancelled = false
+    if (!idParam) {
+      setFilePath(pathParam)
+      setResolvingId(false)
+      return
+    }
+    setResolvingId(true)
+    setFilePath("")
+    fetchIdsMap().then((map) => {
+      if (cancelled) return
+      const mapped = map[idParam]
+      if (mapped) {
+        setFilePath(mapped.replace(/^\/+|\/+$/g, ""))
+        setResolvingId(false)
+      } else if (pathParam) {
+        setFilePath(pathParam)
+        setResolvingId(false)
+      } else {
+        setResolvingId(false)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [idParam, pathParam])
+
+  const share = async () => {
+    if (!filePath || sharing) return
+    setSharing(true)
+    try {
+      const map = await fetchIdsMap()
+      const id = findIdByPath(map, filePath)
+      const url = id ? shortUrlForId(id) : longUrlForPath(filePath)
+      const name = fileName || base
+      const ok = await copyText(name ? `${url}\n${name}` : url)
+      if (ok) {
+        toast.success(id ? "تم نسخ الرابط المختصر" : "تم نسخ الرابط")
+      } else {
+        toast.error("تعذر النسخ")
+      }
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    if (resolvingId) {
+      setLoading(true)
+      setError("")
+      return
+    }
     if (!filePath) {
       setError("No file specified.")
       setLoading(false)
@@ -104,7 +170,7 @@ export function FileViewer() {
     return () => {
       cancelled = true
     }
-  }, [filePath, segments])
+  }, [filePath, segments, resolvingId])
 
   const showImage =
     target != null && (isImageName(base) || isImageName(target.split("?")[0]))
@@ -129,17 +195,29 @@ export function FileViewer() {
             </Link>
           </Button>
           {target && !loading && !error && (
-            <Button
-              variant="outline"
-              size="icon"
-              asChild
-              title="فتح في تبويب جديد"
-              aria-label="فتح في تبويب جديد"
-            >
-              <a href={target} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={share}
+                disabled={sharing || !filePath}
+                title="مشاركة"
+                aria-label="مشاركة"
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                asChild
+                title="فتح في تبويب جديد"
+                aria-label="فتح في تبويب جديد"
+              >
+                <a href={target} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </Button>
+            </>
           )}
         </div>
       </header>

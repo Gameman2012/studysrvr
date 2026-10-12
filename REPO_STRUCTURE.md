@@ -126,8 +126,15 @@ curl -s "https://raw.githubusercontent.com/Gameman2012/studysrvr-links/main/كت
 - لا `rm -rf` لملفات متتبعة — استخدم `git rm`.
 - لا تنشئ identifier جديد على archive.org لكل ملف — استخدم دائماً `studysrvr-batch-2026` (الإضافة لنفس الـ item لا تُحتسب spam؛ إنشاء item جديد هو ما يُحظر 6/اليوم). `studysrvr-batch2-2026` legacy فقط.
 - لا ترفع لـ archive.org ما له رابط مباشر موثوق (`application/pdf` + يدعم `Range`) — استعمل الرابط فوراً ووفّر quota وتجنّب spam.
-- لا تدفع `*.pdf` binary — لكن `*.jpg` في `.thumbs/` مسموح (صور صغيرة أول صفحة).
+- لا تدفع `*.pdf` binary — لكن `*.jpg` في `.thumbs/` مسموح (صور صغيرة أول صفحة). الصور الصغيرة binary مباشرة مسموحة (قرار هجين: <400KB أو عرض <1200px).
 - لا تحذف `.thumbs` يدوياً — استخدم `generate-thumbs.sh --prune` لينقل اليتيمة لـ `pdfs-temp/.thumbs`.
+- لا تعدل `.ids/map.json` يدوياً — استخدم `gen-ids.sh`. ومع الـ rename استخدم `gen-ids.sh --mv "قديم" "جديد"` للحفاظ على الـ id والروابط المتشاركة.
 
-## 6. مرجع كود
+## 6. الروابط المختصرة (`/f?id=`)
+- ملف واحد: `.ids/map.json` = `{"Ab3k9x": "مذكرات/الرياضيات/X.pdf.link"}` — id عشوائي 6 حروف base62 يتولد مرة واحدة (`gen-ids.sh`) ويعيش مع الـ rename.
+- الموقع (`src/lib/share.ts` + `src/pages/FileViewer.tsx`): الـ `id` يكسب، و `path` fallback للروابط القديمة والـ ids المجهولة. الخريطة تُجلب مرة واحدة لكل جلسة من `raw.githubusercontent.com/.../.ids/map.json`.
+- زرار مشاركة في `/f` ينسخ `رابط\nاسم الملف` — مختصر لو الملف له id، وطويل (`?path=`) لو لسه من غير id.
+- بعد التوليد: `git -C ~/Desktop/srvr-files add .ids && git commit -m "feat: ids ..." && git push origin main`.
+
+## 7. مرجع كود
 `src/pages/Home.tsx` `src/lib/github.ts:74` (فلترة `isHiddenItem` + `thumbRawUrl`) `src/components/FileList.tsx:5` (إخفاء `.thumbs` + `LinkThumb` + شارة `-broken`) `src/config.ts:3` `generate-thumbs.sh` (`load_thumb` + `heartbeat` + `timeout`)

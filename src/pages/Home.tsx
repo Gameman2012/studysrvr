@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { Header } from "@/components/Header"
 import { Breadcrumbs, type Crumb } from "@/components/Breadcrumbs"
 import { FileList } from "@/components/FileList"
+import { FeedbackFab } from "@/components/FeedbackFab"
 import { Skeleton } from "@/components/ui/skeleton"
 import { REPO_URL } from "@/config"
 import {
@@ -148,9 +149,7 @@ export function Home() {
         )}
       </main>
 
-      <footer className="border-t border-border px-5 py-6 text-center text-sm text-muted-foreground">
-        Powered by a cloud database — updates reach every student instantly.
-      </footer>
+      <FeedbackFab />
     </div>
   )
 }

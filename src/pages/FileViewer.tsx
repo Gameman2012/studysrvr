@@ -117,17 +117,27 @@ export function FileViewer() {
           <span>Study Hub</span>
         </Link>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            asChild
+            title="رجوع للمجلد"
+            aria-label="رجوع للمجلد"
+          >
             <Link to={backTo}>
               <ArrowLeft className="h-4 w-4" />
-              رجوع للمجلد
             </Link>
           </Button>
           {target && !loading && !error && (
-            <Button variant="outline" size="sm" asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              asChild
+              title="فتح في تبويب جديد"
+              aria-label="فتح في تبويب جديد"
+            >
               <a href={target} target="_blank" rel="noreferrer">
                 <ExternalLink className="h-4 w-4" />
-                فتح في تبويب جديد
               </a>
             </Button>
           )}

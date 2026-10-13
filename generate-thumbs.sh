@@ -9,6 +9,8 @@
 #
 # الاستخدام:
 #   ./generate-thumbs.sh                              # يولد النواقص فقط (100dpi/600px)
+#   ./generate-thumbs.sh --images-only                 # صور فقط (يتخطى PDF)
+#   ./generate-thumbs.sh --pdf-only                    # PDF فقط (يتخطى الصور)
 #   ./generate-thumbs.sh --dry-run                    # معاينة بدون تحميل
 #   ./generate-thumbs.sh --limit 2                     # تجربة أول N ملف فقط
 #   ./generate-thumbs.sh --dpi 150 --width 800 --force # إعادة توليد بدقة أعلى
@@ -29,12 +31,16 @@ DRY_RUN=0
 PRUNE=0
 LIMIT=0
 JOBS=8
+ONLY_PDF=0
+ONLY_IMG=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=1; shift ;;
     --force) FORCE=1; shift ;;
     --prune) PRUNE=1; shift ;;
+    --images-only) ONLY_IMG=1; shift ;;
+    --pdf-only) ONLY_PDF=1; shift ;;
     --limit) LIMIT="$2"; shift 2 ;;
     --dpi) DPI="$2"; shift 2 ;;
     --width) WIDTH="$2"; shift 2 ;;
@@ -96,11 +102,12 @@ if [[ "$PRUNE" == "1" ]]; then
   [[ "$DRY_RUN" == "1" ]] && exit 0
 fi
 
-# --- المرحلة 3: بناء قائمة المهام (النواقص فقط ما لم --force) ---
+# --- المرحلة 3: بناء قائمة مهام PDF (النواقص فقط ما لم --force) ---
 : > "$JOBS_FILE"
 : > "$JOBS_IMG_FILE"
 count_all=0
 count_todo=0
+if [[ "$ONLY_IMG" != "1" ]]; then
 while IFS= read -r -d '' link; do
   count_all=$((count_all + 1))
   # تخطي الروابط الموسومة -broken (ثمبنيلها موجود بالاسم الأصلي)
@@ -120,12 +127,14 @@ while IFS= read -r -d '' link; do
   printf '%s|%s|%s\n' "$link" "$url" "$thumb" >> "$JOBS_FILE"
   count_todo=$((count_todo + 1))
 done < <(find "$BASE" -name "*.pdf.link" -print0 | sort -z)
+fi
 
 echo "pdf.link total: $count_all | todo: $count_todo (dpi=$DPI width=$WIDTH jobs=$JOBS)"
 
 # --- المرحلة 3ب: مهام الصور (بنفس الامتداد مصغراً) ---
 img_all=0
 img_todo=0
+if [[ "$ONLY_PDF" != "1" ]]; then
 while IFS= read -r -d '' link; do
   img_all=$((img_all + 1))
   # mapping: *.jpeg.link --> .thumbs/*.jpeg (نفس الامتداد)
@@ -141,6 +150,7 @@ while IFS= read -r -d '' link; do
   printf '%s|%s|%s\n' "$link" "$url" "$thumb" >> "$JOBS_IMG_FILE"
   img_todo=$((img_todo + 1))
 done < <(find "$BASE" \( -iname "*.jpeg.link" -o -iname "*.jpg.link" -o -iname "*.png.link" -o -iname "*.webp.link" -o -iname "*.gif.link" \) -print0 | sort -z)
+fi
 
 echo "img.link total: $img_all | todo: $img_todo (width=$WIDTH jobs=$JOBS)"
 
@@ -235,9 +245,13 @@ export -f load_image_thumb
 HEARTBEAT_PID=$!
 trap "kill $HEARTBEAT_PID 2>/dev/null" EXIT
 
+if [[ "$ONLY_IMG" != "1" && -s "$JOBS_FILE" ]]; then
 xargs -a "$JOBS_FILE" -d '\n' -P "$JOBS" -n 1 bash -c 'IFS="|" read -r link _rest <<< "$1"; url=$(echo "$1" | cut -d"|" -f2- | rev | cut -d"|" -f2- | rev); thumb=$(echo "$1" | rev | cut -d"|" -f1 | rev); load_thumb "$link" "$url" "$thumb"' _
+fi
 
+if [[ "$ONLY_PDF" != "1" && -s "$JOBS_IMG_FILE" ]]; then
 xargs -a "$JOBS_IMG_FILE" -d '\n' -P "$JOBS" -n 1 bash -c 'IFS="|" read -r link _rest <<< "$1"; url=$(echo "$1" | cut -d"|" -f2- | rev | cut -d"|" -f2- | rev); thumb=$(echo "$1" | rev | cut -d"|" -f1 | rev); load_image_thumb "$link" "$url" "$thumb"' _
+fi
 
 kill "$HEARTBEAT_PID" 2>/dev/null
 trap - EXIT
